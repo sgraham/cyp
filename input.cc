@@ -5,6 +5,8 @@
 // Does the equivalent of gyp.input.Load(...) and saves the result to a pickle
 // file.
 
+#include "string_piece.h"
+
 #include <stdarg.h>
 
 #include <future>
@@ -53,11 +55,12 @@ string ReadFile(const string& path) {
   return ret;
 }
 
-// VS2013 doesn't have unrestricted unions yet.
+// VS2013 doesn't yet support unrestricted unions.
 struct Value {
   Value() : type(Value_Unknown), ptr(NULL) {}
   enum ValueType { Value_Unknown, Value_Dict, Value_List, Value_String };
   ValueType type;
+  // TODO: Embed root of structures here.
   union {
     unordered_map<string, Value>* dict;
     vector<Value>* list;
@@ -66,12 +69,128 @@ struct Value {
   };
 };
 
+struct LoadCtx {
+  LoadCtx(StringPiece contents, const char* path)
+      : start_(contents.str_),
+        cur_(contents.str_),
+        end_(contents.str_ + contents.len_),
+        path_(path) {}
+
+  Value Parse() {
+    Value ret;
+    SkipWhitespace();
+    if (Peek() == '\0')
+      FatalParse("text only contains white space");
+    switch (Peek()) {
+      case '{':
+        ParseDict();
+        break;
+      case '[':
+        ParseArray();
+        break;
+    }
+    SkipWhitespace();
+    if (Peek() != '\0')
+      FatalParse("nothing should follow the root");
+    return ret;
+  }
+
+  char Peek() { return *cur_; }
+
+  char Take() { return *cur_++; }
+
+  void SkipWhitespace() {
+    for (;;) {
+      char c = Peek();
+      if (c == ' ' || c == '\n' || c == '\r' || c == '\t')
+        Take();
+      else
+        break;
+    }
+  }
+
+  void GetLineAndColumn(int* line, int* column) {
+    *line = 1;
+    *column = 1;
+    for (const char* p = start_; p != cur_; ++p) {
+      if (*p == '\r')
+        continue;
+      if (*p == '\n') {
+        *line += 1;
+        *column = 1;
+        continue;
+      }
+      *column += 1;
+    }
+  }
+
+  NORETURN void FatalParse(const char* msg) {
+    int line, column;
+    GetLineAndColumn(&line, &column);
+    Fatal("%s:%d:%d: %s", path_, line, column, msg);
+  }
+
+  void StartObject() {}
+
+  void EndObject(size_t count) {}
+
+  void ParseDict() {
+    Take();  // Skip '{'.
+    StartObject();
+    SkipWhitespace();
+    if (Peek() == '}') {
+      // Empty dict.
+      Take();
+      EndObject(0);
+      return;
+    }
+    size_t member_count = 0;
+    for (;;) {
+      if (Peek() != '\'')
+        FatalParse("name must be string");
+      ParseString();
+      if (Take() != ':')
+        FatalParse("expected colon after object name");
+      ParseValue();
+      SkipWhitespace();
+      ++member_count;
+      switch (Take()) {
+        case ',':
+          SkipWhitespace();
+          // Trailing , allowed.
+          if (Peek() == '}') {
+            EndObject(member_count);
+            return;
+          }
+          break;
+        case '}':
+          EndObject(member_count);
+          return;
+      }
+    }
+  }
+
+  void ParseArray() {}
+
+  void ParseString() {}
+
+  void ParseValue() {}
+
+ private:
+  const char* start_;
+  const char* cur_;
+  const char* end_;
+  const char* path_;
+};
+
 // Originally a restricted Python dict. Sort of json-y with # comments.
-// Strings are ' only. Top-level must be {}. Keys can be dicts, lists, strings
-// or ints (which are converted to strings).
-Value GypDictLoad(const string& source) {
-  Value ret;
-  return ret;
+// Strings are '-delimited only. Top-level must be {}. Keys can be dicts, lists,
+// strings (and ints, which are converted to strings). Input strings are not
+// decoded, i.e. ascii not utf8 and resulting tree structure points into
+// |source|.
+Value GypDictLoad(const string& path, StringPiece source) {
+  LoadCtx ctx(source, path.c_str());
+  return ctx.Parse();
 }
 
 void LoadOneBuildFile(const string& build_file_path,
@@ -86,7 +205,7 @@ void LoadOneBuildFile(const string& build_file_path,
   string build_file_contents = ReadFile(build_file_path);
 
   // "eval" the contents of the file, reporting syntax and evaluation errors.
-  Value result = GypDictLoad(build_file_contents);
+  Value result = GypDictLoad(build_file_path, build_file_contents);
 
   // Ensure it evalutes to a dictionary.
   if (result.type != Value::Value_Dict)
