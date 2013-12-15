@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 using std::async;
@@ -20,6 +21,7 @@ using std::map;
 using std::set;
 using std::string;
 using std::vector;
+using std::unordered_map;
 
 typedef map<string, string> StringDict;
 typedef map<string, set<string> > LoadData;
@@ -51,6 +53,27 @@ string ReadFile(const string& path) {
   return ret;
 }
 
+// VS2013 doesn't have unrestricted unions yet.
+struct Value {
+  Value() : type(Value_Unknown), ptr(NULL) {}
+  enum ValueType { Value_Unknown, Value_Dict, Value_List, Value_String };
+  ValueType type;
+  union {
+    unordered_map<string, Value>* dict;
+    vector<Value>* list;
+    string* str;
+    void* ptr;
+  };
+};
+
+// Originally a restricted Python dict. Sort of json-y with # comments.
+// Strings are ' only. Top-level must be {}. Keys can be dicts, lists, strings
+// or ints (which are converted to strings).
+Value GypDictLoad(const string& source) {
+  Value ret;
+  return ret;
+}
+
 void LoadOneBuildFile(const string& build_file_path,
                       const LoadData& data,
                       void* aux_data,  // TODO: ?
@@ -62,10 +85,13 @@ void LoadOneBuildFile(const string& build_file_path,
   // Read file, or raise error.
   string build_file_contents = ReadFile(build_file_path);
 
-  // TODO: "eval" the contents of the file, reporting syntax and evaluation
-  // errors.
+  // "eval" the contents of the file, reporting syntax and evaluation errors.
+  Value result = GypDictLoad(build_file_contents);
 
-  // TODO: Ensure it evalutes to a dictionary.
+  // Ensure it evalutes to a dictionary.
+  if (result.type != Value::Value_Dict)
+    Fatal("did not evaluate to a dictionary '%s'", build_file_path.c_str());
+
 
   // TODO: Save the result into data[build_file_path]
   // TODO: Set aux_data[build_file_path] to empty dict.
