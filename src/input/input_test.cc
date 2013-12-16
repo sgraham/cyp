@@ -17,8 +17,12 @@ TEST(Parse, Basic) {
   TestLoad("{}", &v);
   EXPECT_TRUE(v.IsDict());
 
-  //TestLoad("{'a':'b'}", &v);
-  //EXPECT_TRUE(v.IsDict());
-  //EXPECT_EQ(1, v.
-  //EX_
+  //TestFail("{}{", &v);
+  //TestFail("{'a','b'}", &v);
+
+  TestLoad("{'a':'b'}", &v);
+  EXPECT_TRUE(v.IsDict());
+  EXPECT_EQ(1, v.GetDictSize());
+  EXPECT_TRUE(v.GetItem("a").IsString());
+  //EXPECT_EQ("b", v.GetItem("a").GetString());
 }

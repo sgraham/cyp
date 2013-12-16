@@ -84,6 +84,16 @@ class Value {
     data_.d->emplace(key, value);
   }
 
+  size_t GetDictSize() const {
+    assert(IsDict());
+    return data_.d->size();
+  }
+
+  const Value& GetItem(const std::string& key) const {
+    assert(IsDict());
+    return data_.d->at(key);
+  }
+
   Value& operator=(Value& rhs) {
     Value temp(rhs);
     std::swap(this->data_.ptr, rhs.data_.ptr);

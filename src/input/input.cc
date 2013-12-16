@@ -48,7 +48,7 @@ class LoadCtx {
   NORETURN void FatalParse(const char* msg);
   void StartDict();
   void ParseDict();
-  void ParseArray();
+  void ParseList();
   void ParseString();
   void ParseValue();
 
@@ -69,18 +69,18 @@ LoadCtx::LoadCtx(const string& path, char* data, size_t len, Value* result)
 
 void LoadCtx::Parse() {
   SkipWhitespace();
-  if (Peek() == '\0')
+  if (Peek() == 0)
     FatalParse("text only contains white space");
   switch (Peek()) {
     case '{':
       ParseDict();
       break;
     case '[':
-      ParseArray();
+      ParseList();
       break;
   }
   SkipWhitespace();
-  if (Peek() != '\0')
+  if (Peek() != 0)
     FatalParse("nothing should follow the root");
   *result_ = stack_.back();
   stack_.pop_back();
@@ -169,24 +169,49 @@ void LoadCtx::ParseDict() {
   }
 }
 
-void LoadCtx::ParseArray() {}
+void LoadCtx::ParseList() {
+  assert(false && "todo");
+}
 
 void LoadCtx::ParseString() {
   char quote = Take();
   if (quote != '\'' && quote != '"')
     FatalParse("expected ' or \" to start string");
+
+  Value v;
+  stack_.push_back(v);
+
   char* start = cur_;
-  (void)start;
   for (;;) {
     char c = Take();
+    if (c == 0)
+      FatalParse("EOF while parsing string");  // TODO: Add start location.
     if (c == quote) {
       char* end = cur_;
-      (void)end;
+      stack_.back().SetString(start, end - start);
+      return;
+    } else if (c == '\\') {
+      assert(false && "todo");
     }
   }
 }
 
-void LoadCtx::ParseValue() {}
+void LoadCtx::ParseValue() {
+  switch (Peek()) {
+    case '"':
+    case '\'':
+      ParseString();
+      break;
+    case '{':
+      ParseDict();
+      break;
+    case '[':
+      ParseList();
+      break;
+    default:
+      assert(false && "todo, numbers");
+  }
+}
 
 // Originally a restricted Python dict. Sort of json-y with # comments.
 // Strings with ' or ", but no ''', etc. Top-level must be {}. Keys can be
