@@ -1,0 +1,5 @@
+Prototype of replacing some of gyp with C code.
+
+call vcvarsall amd64
+python sng.py -u
+third_party\ninja\ninja && out\tests.exe
