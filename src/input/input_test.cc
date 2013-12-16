@@ -17,8 +17,8 @@ TEST(Parse, Basic) {
   TestLoad("{}", &v);
   EXPECT_TRUE(v.IsDict());
 
-  TestLoad("{'a':'b'}", &v);
-  EXPECT_TRUE(v.IsDict());
+  //TestLoad("{'a':'b'}", &v);
+  //EXPECT_TRUE(v.IsDict());
   //EXPECT_EQ(1, v.
   //EX_
 }

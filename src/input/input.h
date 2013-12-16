@@ -86,7 +86,8 @@ class Value {
 
   Value& operator=(Value& rhs) {
     Value temp(rhs);
-    std::swap(*this, temp);
+    std::swap(this->data_.ptr, rhs.data_.ptr);
+    std::swap(this->flags_, rhs.flags_);
     return *this;
   }
 
@@ -126,6 +127,7 @@ class Value {
     std::unordered_map<std::string, Value>* d;
     std::vector<Value>* l;
     std::string* s;
+    void* ptr;
   };
 
   Data data_;
