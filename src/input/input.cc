@@ -179,6 +179,7 @@ void LoadCtx::ParseDict() {
       cur_--;
       PARSE_ERROR("expected colon after name");
     }
+    SkipWhitespace();
     ParseValue();
     SkipWhitespace();
     Value& dict = stack_.at(stack_.size() - 3);
@@ -191,8 +192,10 @@ void LoadCtx::ParseDict() {
       case ',':
         SkipWhitespace();
         // Trailing , allowed.
-        if (Peek() == '}')
+        if (Peek() == '}') {
+          Take();
           return;
+        }
         break;
       case '}':
         return;
@@ -224,8 +227,10 @@ void LoadCtx::ParseList() {
       case ',':
         SkipWhitespace();
         // Trailing , allowed.
-        if (Peek() == ']')
+        if (Peek() == ']') {
+          Take();
           return;
+        }
         break;
       case ']':
         return;

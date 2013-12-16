@@ -61,8 +61,31 @@ TEST(Parse, VariousErrors) {
 
 TEST(Parse, Nested) {
   Value v;
+
+  TestLoad("{'stuff':{'things':'wee', 'waa': 'woo'}}", &v);
+  EXPECT_TRUE(v.IsDict());
+  EXPECT_EQ(1, v.GetDictSize());
+  const Value& sub = v.GetItem("stuff");
+  EXPECT_EQ(2, sub.GetDictSize());
+  EXPECT_EQ("wee", sub.GetItem("things").GetString());
+  EXPECT_EQ("woo", sub.GetItem("waa").GetString());
+}
+
+TEST(Parse, TrailingCommas) {
+  Value v;
+
+  TestLoad("{'stuff':'wee',}", &v);
+  EXPECT_TRUE(v.IsDict());
+  EXPECT_EQ(1, v.GetDictSize());
+
+  TestLoad("[1, 2,3,]", &v);
+  EXPECT_TRUE(v.IsList());
+  EXPECT_EQ(3, v.GetListSize());
 }
 
 TEST(Parse, StringEscapes) {
   Value v;
+}
+
+TEST(Parse, Comments) {
 }
