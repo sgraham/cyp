@@ -60,7 +60,20 @@ class Value {
     return data_.l->at(index);
   }
 
-  // TODO: ListReserve, ListPushBack, ListPopBack.
+  void ListPushBack(const Value& value) {
+    assert(IsList());
+    data_.l->push_back(value);
+  }
+
+  void ListPopBack() {
+    assert(IsList());
+    data_.l->pop_back();
+  }
+
+  void ListReserve(size_t size) {
+    assert(IsList());
+    data_.l->reserve(size);
+  }
 
   Value& SetString(const char* s, size_t len) {
     this->~Value();

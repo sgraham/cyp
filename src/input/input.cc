@@ -198,7 +198,36 @@ void LoadCtx::ParseDict() {
 }
 
 void LoadCtx::ParseList() {
-  assert(false && "todo");
+  Take();  // Skip '['.
+
+  Value v;
+  v.SetList();
+  stack_.push_back(v);
+
+  SkipWhitespace();
+  if (Peek() == ']') {
+    // Empty list.
+    Take();
+    return;
+  }
+  for (;;) {
+    ParseValue();
+    Value& list = stack_.at(stack_.size() - 2);
+    const Value& value = stack_.at(stack_.size() - 1);
+    stack_.pop_back();
+    list.ListPushBack(value);
+    SkipWhitespace();
+    switch (Take()) {
+      case ',':
+        SkipWhitespace();
+        // Trailing , allowed.
+        if (Peek() == ']')
+          return;
+        break;
+      case ']':
+        return;
+    }
+  }
 }
 
 void LoadCtx::ParseString() {
@@ -237,7 +266,7 @@ void LoadCtx::ParseValue() {
       ParseList();
       break;
     default:
-      assert(false && "todo, numbers");
+      assert(false && "todo, ints");
   }
 }
 

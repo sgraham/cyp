@@ -34,4 +34,13 @@ TEST(Parse, Basic) {
   EXPECT_EQ(1, v.GetDictSize());
   EXPECT_TRUE(v.GetItem("a").IsString());
   EXPECT_EQ("b", v.GetItem("a").GetString());
+
+  TestLoad("[]", &v);
+  EXPECT_TRUE(v.IsList());
+  EXPECT_EQ(0, v.GetListSize());
+
+  TestLoad("['a']", &v);
+  EXPECT_TRUE(v.IsList());
+  EXPECT_EQ(1, v.GetListSize());
+  EXPECT_EQ("a", v[0].GetString());
 }
