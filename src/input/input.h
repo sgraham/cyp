@@ -28,6 +28,12 @@ class Value {
   bool IsList() const { return flags_ & kList; }
   bool IsString() const { return flags_ & kString; }
 
+  Value& SetNone() {
+    this->~Value();
+    new (this) Value();
+    return *this;
+  }
+
   Value& SetList() {
     this->~Value();
     new (this) Value(kList);
@@ -144,8 +150,7 @@ class Value {
   unsigned int flags_;
 };
 
-void GypLoad(const std::string& path,
-             char* data,
+void GypLoad(char* data,
              size_t len,
              Value* result,
              std::string* err);

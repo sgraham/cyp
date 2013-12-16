@@ -9,6 +9,7 @@
 #include "input/string_piece.h"
 
 #include <stdarg.h>
+#include <setjmp.h>
 
 #include <future>
 #include <map>
@@ -16,6 +17,10 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
+
+#ifdef _MSC_VER
+#pragma warning(disable: 4127)  // Conditional expression is constant.
+#endif
 
 using std::async;
 using std::future;
@@ -37,7 +42,7 @@ NORETURN void Fatal(const char* msg, ...) {
 
 class LoadCtx {
  public:
-  LoadCtx(const std::string& path, char* data, size_t len, Value* result);
+  LoadCtx(char* data, size_t len, Value* result, string* err);
   void Parse();
 
  private:
@@ -45,7 +50,6 @@ class LoadCtx {
   char Take();
   void SkipWhitespace();
   void GetLineAndColumn(int* line, int* column);
-  NORETURN void FatalParse(const char* msg);
   void StartDict();
   void ParseDict();
   void ParseList();
@@ -56,21 +60,51 @@ class LoadCtx {
   char* start_;
   char* cur_;
   char* end_;
-  std::string path_;
   Value* result_;
+
+  jmp_buf jmpbuf_;
+  std::string* err_;
 };
 
-LoadCtx::LoadCtx(const string& path, char* data, size_t len, Value* result)
+#define PARSE_ERROR(msg)                                        \
+  do {                                                          \
+    int line, column;                                           \
+    GetLineAndColumn(&line, &column);                           \
+    char buf[256];                                              \
+    sprintf_s(buf, sizeof(buf), "%d:%d:%s", line, column, msg); \
+    *err_ = buf;                                                \
+    longjmp(jmpbuf_, 1);                                        \
+  } while (0)
+
+LoadCtx::LoadCtx(char* data, size_t len, Value* result, string* err)
     : start_(data),
       cur_(data),
       end_(data + len),
-      path_(path),
-      result_(result) {}
+      result_(result),
+      err_(err) {
+  result_->SetNone();
+  err_->clear();
+}
 
 void LoadCtx::Parse() {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4611)  // interaction between '_setjmp' and C++ \
+                                 // object destruction is non-portable
+#endif
+  if (setjmp(jmpbuf_)) {
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+    // err_ will be set.
+    result_->SetNone();
+    stack_.clear();
+    return;
+  }
+
   SkipWhitespace();
   if (Peek() == 0)
-    FatalParse("text only contains white space");
+    PARSE_ERROR("text only contains white space");
   switch (Peek()) {
     case '{':
       ParseDict();
@@ -81,7 +115,7 @@ void LoadCtx::Parse() {
   }
   SkipWhitespace();
   if (Peek() != 0)
-    FatalParse("nothing should follow the root");
+    PARSE_ERROR("nothing should follow the root");
   *result_ = stack_.back();
   stack_.pop_back();
 }
@@ -123,12 +157,6 @@ void LoadCtx::GetLineAndColumn(int* line, int* column) {
   }
 }
 
-NORETURN void LoadCtx::FatalParse(const char* msg) {
-  int line, column;
-  GetLineAndColumn(&line, &column);
-  Fatal("%s:%d:%d: %s", path_.c_str(), line, column, msg);
-}
-
 void LoadCtx::ParseDict() {
   Take();  // Skip '{'.
 
@@ -144,10 +172,10 @@ void LoadCtx::ParseDict() {
   }
   for (;;) {
     if (Peek() != '\'' && Peek() != '"')
-      FatalParse("name must be string");
+      PARSE_ERROR("name must be string");
     ParseString();
     if (Take() != ':')
-      FatalParse("expected colon after object name");
+      PARSE_ERROR("expected colon after object name");
     ParseValue();
     SkipWhitespace();
     Value& dict = stack_.at(stack_.size() - 3);
@@ -176,7 +204,7 @@ void LoadCtx::ParseList() {
 void LoadCtx::ParseString() {
   char quote = Take();
   if (quote != '\'' && quote != '"')
-    FatalParse("expected ' or \" to start string");
+    PARSE_ERROR("expected ' or \" to start string");
 
   Value v;
   stack_.push_back(v);
@@ -185,9 +213,9 @@ void LoadCtx::ParseString() {
   for (;;) {
     char c = Take();
     if (c == 0)
-      FatalParse("EOF while parsing string");  // TODO: Add start location.
+      PARSE_ERROR("EOF while parsing string");  // TODO: Add start location.
     if (c == quote) {
-      char* end = cur_;
+      char* end = cur_ - 1;
       stack_.back().SetString(start, end - start);
       return;
     } else if (c == '\\') {
@@ -219,12 +247,11 @@ void LoadCtx::ParseValue() {
 // strings are decoded in place and point into contents.
 //
 // |contents| is modified in place (to decode string escape sequences).
-void GypLoad(const string& path,
-             char* data,
+void GypLoad(char* data,
              size_t len,
              Value* result,
              string* err) {
-  LoadCtx ctx(path, data, len, result);
+  LoadCtx ctx(data, len, result, err);
   ctx.Parse();
 }
 

@@ -46,7 +46,7 @@ void LoadOneBuildFile(const string& build_file_path,
   // "eval" the contents of the file, reporting syntax and evaluation errors.
   Value result;
   std::string err;
-  GypLoad(build_file_path, build_file_contents, build_file_len, &result, &err);
+  GypLoad(build_file_contents, build_file_len, &result, &err);
 
   // Ensure it evalutes to a dictionary.
   if (result.IsDict())
