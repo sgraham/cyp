@@ -136,9 +136,19 @@ char LoadCtx::Take() {
 void LoadCtx::SkipWhitespace() {
   for (;;) {
     char c = Peek();
-    if (c == ' ' || c == '\n' || c == '\r' || c == '\t')
+    if (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
       Take();
-    else
+    } else if (c == '#') {
+      Take();
+      for (;;) {
+        c = Peek();
+        if (c == 0)
+          return;
+        if (c == '\n')
+          break;
+        Take();
+      }
+    } else
       break;
   }
 }
@@ -175,6 +185,7 @@ void LoadCtx::ParseDict() {
     if (Peek() != '\'' && Peek() != '"')
       PARSE_ERROR("name must be string");
     ParseString();
+    SkipWhitespace();
     if (Take() != ':') {
       cur_--;
       PARSE_ERROR("expected colon after name");

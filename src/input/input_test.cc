@@ -88,4 +88,16 @@ TEST(Parse, StringEscapes) {
 }
 
 TEST(Parse, Comments) {
+  Value v;
+
+  TestLoad("# stuff\n[#hai\n'stuff'#wee\n,#xyz\n3#blah\n,]", &v);
+  EXPECT_TRUE(v.IsList());
+  EXPECT_EQ(2, v.GetListSize());
+  EXPECT_EQ("stuff", v[0].GetString());
+  EXPECT_EQ("3", v[1].GetString());
+
+  TestLoad("# stuff\n{#hai\n'stuff'#wee\n:#xyz\n3#blah\n,}", &v);
+  EXPECT_TRUE(v.IsDict());
+  EXPECT_EQ(1, v.GetDictSize());
+  EXPECT_EQ("3", v.GetItem("stuff").GetString());
 }
