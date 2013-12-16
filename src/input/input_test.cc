@@ -43,4 +43,26 @@ TEST(Parse, Basic) {
   EXPECT_TRUE(v.IsList());
   EXPECT_EQ(1, v.GetListSize());
   EXPECT_EQ("a", v[0].GetString());
+
+  TestLoad("[1, \"stuff\", 43534]", &v);
+  EXPECT_TRUE(v.IsList());
+  EXPECT_EQ(3, v.GetListSize());
+  EXPECT_EQ("1", v[0].GetString());
+  EXPECT_EQ("stuff", v[1].GetString());
+  EXPECT_EQ("43534", v[2].GetString());
+}
+
+TEST(Parse, VariousErrors) {
+  EXPECT_EQ("1:2:name must be string", TestErr("{[]:'hi'}"));
+  EXPECT_EQ("1:5:expected colon after name", TestErr("{'a','hi'}"));
+  EXPECT_EQ("1:6:EOF while parsing string", TestErr("['abc"));
+  EXPECT_EQ("1:4:value expected", TestErr("[[]"));
+}
+
+TEST(Parse, Nested) {
+  Value v;
+}
+
+TEST(Parse, StringEscapes) {
+  Value v;
 }

@@ -54,6 +54,7 @@ class LoadCtx {
   void ParseDict();
   void ParseList();
   void ParseString();
+  void ParseNumber();
   void ParseValue();
 
   std::vector<Value> stack_;
@@ -174,8 +175,10 @@ void LoadCtx::ParseDict() {
     if (Peek() != '\'' && Peek() != '"')
       PARSE_ERROR("name must be string");
     ParseString();
-    if (Take() != ':')
-      PARSE_ERROR("expected colon after object name");
+    if (Take() != ':') {
+      cur_--;
+      PARSE_ERROR("expected colon after name");
+    }
     ParseValue();
     SkipWhitespace();
     Value& dict = stack_.at(stack_.size() - 3);
@@ -253,6 +256,20 @@ void LoadCtx::ParseString() {
   }
 }
 
+void LoadCtx::ParseNumber() {
+  // TODO: Negative numbers?
+  if (Peek() < '0' || Peek() > '9')
+    PARSE_ERROR("value expected");
+  int i = 0;
+  while (Peek() >= '0' && Peek() <= '9')
+    i = i * 10 + (Take() - '0');
+  char buf[32];
+  sprintf(buf, "%d", i);
+  Value v;
+  v.SetString(buf, strlen(buf));
+  stack_.push_back(v);
+}
+
 void LoadCtx::ParseValue() {
   switch (Peek()) {
     case '"':
@@ -266,7 +283,8 @@ void LoadCtx::ParseValue() {
       ParseList();
       break;
     default:
-      assert(false && "todo, ints");
+      ParseNumber();
+      break;
   }
 }
 
