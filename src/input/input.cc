@@ -20,6 +20,7 @@
 
 #ifdef _MSC_VER
 #pragma warning(disable: 4127)  // Conditional expression is constant.
+#pragma warning(disable: 4324)  // Structure was padded due to __declspec.
 #endif
 
 using std::async;
@@ -281,6 +282,9 @@ void LoadCtx::ParseString() {
           break;
         case '"':
           result.push_back('"');
+          break;
+        case '\n':
+          // Line continuation, ignored.
           break;
         default:
           assert(false && "todo; unhandled escape");

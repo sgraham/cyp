@@ -75,6 +75,8 @@ class Value {
     data_.l->reserve(size);
   }
 
+  // TODO: Make source data mutable to handle escapes, and then make this a
+  // StringPiece.
   Value& SetString(const std::string& str) {
     this->~Value();
     new (this) Value(str);

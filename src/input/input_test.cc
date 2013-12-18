@@ -89,6 +89,11 @@ TEST(Parse, StringEscapes) {
   EXPECT_EQ("\n", v[1].GetString());
   EXPECT_EQ("'", v[2].GetString());
   EXPECT_EQ("\"", v[3].GetString());
+
+  TestLoad("['stuff \\\n       blah']", &v);
+  EXPECT_TRUE(v.IsList());
+  EXPECT_EQ(1, v.GetListSize());
+  EXPECT_EQ("stuff        blah", v[0].GetString());
 }
 
 TEST(Parse, Comments) {
@@ -104,4 +109,30 @@ TEST(Parse, Comments) {
   EXPECT_TRUE(v.IsDict());
   EXPECT_EQ(1, v.GetDictSize());
   EXPECT_EQ("3", v.GetItem("stuff").GetString());
+}
+
+// TODO: util.h
+std::string ReadFile(const std::string& path) {
+  FILE* f = fopen(path.c_str(), "rb");
+  if (!f)
+    Fatal("couldn't open '%s': %s", path.c_str(), strerror(errno));
+  fseek(f, 0, SEEK_END);
+  size_t len = ftell(f);
+  fseek(f, 0, SEEK_SET);
+  char* data = new char[len];
+  size_t read = fread(data, 1, len, f);
+  if (read != len)
+    Fatal("didn't read %d bytes as expected", len);
+  std::string result(data, len);
+  delete[] data;
+  return result;
+}
+
+TEST(Parse, Large) {
+  Value v;
+  std::string all_gyp = ReadFile("src/input/testdata.gyp");
+  TestLoad(all_gyp.c_str(), &v);
+  EXPECT_TRUE(v.IsDict());
+  EXPECT_EQ(4, v.GetItem("targets").GetListSize());
+  EXPECT_EQ(5, v.GetItem("conditions").GetListSize());
 }
