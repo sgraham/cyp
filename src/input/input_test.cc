@@ -2,20 +2,16 @@
 
 #include <gtest/gtest.h>
 
-#pragma warning(disable: 4996)
-
 void TestLoad(const char* input, Value* v) {
-  char* copy = strdup(input);
   std::string err;
-  GypLoad(copy, strlen(copy), v, &err);
+  GypLoad(input, v, &err);
   EXPECT_TRUE(err.empty());
 }
 
 std::string TestErr(const char* input) {
-  char* copy = strdup(input);
   std::string err;
   Value v;
-  GypLoad(copy, strlen(copy), &v, &err);
+  GypLoad(input, &v, &err);
   return err;
 }
 
@@ -85,6 +81,14 @@ TEST(Parse, TrailingCommas) {
 
 TEST(Parse, StringEscapes) {
   Value v;
+
+  TestLoad("['\\\\', \"\\n\", '\\'', \"\\\"\"]", &v);
+  EXPECT_TRUE(v.IsList());
+  EXPECT_EQ(4, v.GetListSize());
+  EXPECT_EQ("\\", v[0].GetString());
+  EXPECT_EQ("\n", v[1].GetString());
+  EXPECT_EQ("'", v[2].GetString());
+  EXPECT_EQ("\"", v[3].GetString());
 }
 
 TEST(Parse, Comments) {

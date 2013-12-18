@@ -42,7 +42,7 @@ NORETURN void Fatal(const char* msg, ...) {
 
 class LoadCtx {
  public:
-  LoadCtx(char* data, size_t len, Value* result, string* err);
+  LoadCtx(const std::string& data, Value* result, string* err);
   void Parse();
 
  private:
@@ -58,9 +58,9 @@ class LoadCtx {
   void ParseValue();
 
   std::vector<Value> stack_;
-  char* start_;
-  char* cur_;
-  char* end_;
+  const char* start_;
+  const char* cur_;
+  const char* end_;
   Value* result_;
 
   jmp_buf jmpbuf_;
@@ -77,10 +77,10 @@ class LoadCtx {
     longjmp(jmpbuf_, 1);                                        \
   } while (0)
 
-LoadCtx::LoadCtx(char* data, size_t len, Value* result, string* err)
-    : start_(data),
-      cur_(data),
-      end_(data + len),
+LoadCtx::LoadCtx(const std::string& data, Value* result, string* err)
+    : start_(data.c_str()),
+      cur_(data.c_str()),
+      end_(data.c_str() + data.size()),
       result_(result),
       err_(err) {
   result_->SetNone();
@@ -257,17 +257,37 @@ void LoadCtx::ParseString() {
   Value v;
   stack_.push_back(v);
 
-  char* start = cur_;
+  string result;
   for (;;) {
     char c = Take();
     if (c == 0)
       PARSE_ERROR("EOF while parsing string");  // TODO: Add start location.
     if (c == quote) {
-      char* end = cur_ - 1;
-      stack_.back().SetString(start, end - start);
+      stack_.back().SetString(result);
       return;
     } else if (c == '\\') {
-      assert(false && "todo");
+      switch (Take()) {
+        case 'n':
+          result.push_back('\n');
+          break;
+        case 'r':
+          result.push_back('\r');
+          break;
+        case '\\':
+          result.push_back('\\');
+          break;
+        case '\'':
+          result.push_back('\'');
+          break;
+        case '"':
+          result.push_back('"');
+          break;
+        default:
+          assert(false && "todo; unhandled escape");
+          break;
+      }
+    } else {
+      result.push_back(c);
     }
   }
 }
@@ -282,7 +302,7 @@ void LoadCtx::ParseNumber() {
   char buf[32];
   sprintf(buf, "%d", i);
   Value v;
-  v.SetString(buf, strlen(buf));
+  v.SetString(buf);
   stack_.push_back(v);
 }
 
@@ -308,13 +328,8 @@ void LoadCtx::ParseValue() {
 // Strings with ' or ", but no ''', etc. Top-level must be {}. Keys can be
 // dicts, lists, strings (and ints, which are converted to strings). Input
 // strings are decoded in place and point into contents.
-//
-// |contents| is modified in place (to decode string escape sequences).
-void GypLoad(char* data,
-             size_t len,
-             Value* result,
-             string* err) {
-  LoadCtx ctx(data, len, result, err);
+void GypLoad(const std::string& data, Value* result, string* err) {
+  LoadCtx ctx(data, result, err);
   ctx.Parse();
 }
 

@@ -75,9 +75,9 @@ class Value {
     data_.l->reserve(size);
   }
 
-  Value& SetString(const char* s, size_t len) {
+  Value& SetString(const std::string& str) {
     this->~Value();
-    new (this) Value(s, len);
+    new (this) Value(str);
     return *this;
   }
 
@@ -148,8 +148,8 @@ class Value {
       data_.s = new std::string();
   }
 
-  Value(const char* s, size_t len) : flags_(kString) {
-    data_.s = new std::string(s, len);
+  Value(const std::string& str) : flags_(kString) {
+    data_.s = new std::string(str);
   }
 
   union Data {
@@ -163,9 +163,6 @@ class Value {
   unsigned int flags_;
 };
 
-void GypLoad(char* data,
-             size_t len,
-             Value* result,
-             std::string* err);
+void GypLoad(const std::string& data, Value* result, std::string* err);
 
 #endif  // INPUT_INPUT_H_

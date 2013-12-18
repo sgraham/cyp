@@ -17,17 +17,20 @@ using std::vector;
 typedef map<string, set<string> > LoadData;
 typedef map<string, string> StringDict;
 
-void ReadFile(const string& path, char** data, size_t* len) {
+string ReadFile(const string& path) {
   FILE* f = fopen(path.c_str(), "rb");
   if (!f)
     Fatal("couldn't open '%s': %s", path.c_str(), strerror(errno));
   fseek(f, 0, SEEK_END);
-  *len = ftell(f);
+  size_t len = ftell(f);
   fseek(f, 0, SEEK_SET);
-  *data = new char[*len];
-  size_t read = fread(data, 1, *len, f);
-  if (read != *len)
-    Fatal("didn't read %d bytes as expected", *len);
+  char* data = new char[len];
+  size_t read = fread(data, 1, len, f);
+  if (read != len)
+    Fatal("didn't read %d bytes as expected", len);
+  string result(data, len);
+  delete[] data;
+  return result;
 }
 
 void LoadOneBuildFile(const string& build_file_path,
@@ -39,14 +42,12 @@ void LoadOneBuildFile(const string& build_file_path,
   // TODO: If already loaded, return already loaded result.
 
   // Read file, or abort.
-  char* build_file_contents;
-  size_t build_file_len;
-  ReadFile(build_file_path, &build_file_contents, &build_file_len);
+  string build_file_contents = ReadFile(build_file_path);
 
   // "eval" the contents of the file, reporting syntax and evaluation errors.
   Value result;
   std::string err;
-  GypLoad(build_file_contents, build_file_len, &result, &err);
+  GypLoad(build_file_contents, &result, &err);
 
   // Ensure it evalutes to a dictionary.
   if (result.IsDict())
